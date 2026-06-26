@@ -10,12 +10,42 @@
 <title>Finance Tracker 007</title>
 <link rel="manifest" href="manifest.json"/>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  body{background:#0f1117;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;
-    overscroll-behavior:none;-webkit-overflow-scrolling:touch}
-  input,select,textarea{font-family:inherit}
-  ::-webkit-scrollbar{display:none}
-  button:active{opacity:.8}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0f1117;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;
+  overscroll-behavior:none;-webkit-overflow-scrolling:touch}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#1a1d27}
+::-webkit-scrollbar-thumb{background:#2a2e45;border-radius:99px}
+button:active{opacity:.8}
+
+/* ── Desktop sidebar layout ── */
+@media(min-width:768px){
+  #app-shell{display:flex;min-height:100vh}
+  #sidebar{width:240px;min-height:100vh;background:#13151f;
+    border-right:1px solid #2a2e45;position:fixed;top:0;left:0;bottom:0;
+    display:flex;flex-direction:column;z-index:50;padding:24px 0}
+  #main-area{margin-left:240px;flex:1;min-height:100vh;background:#0f1117}
+  #top-bar{display:flex;justify-content:space-between;align-items:center;
+    padding:20px 32px;border-bottom:1px solid #2a2e45;background:#13151f;
+    position:sticky;top:0;z-index:40}
+  #content-area{padding:24px 32px 40px;max-width:1400px}
+  #bottom-nav{display:none!important}
+  .desktop-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .desktop-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .desktop-grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
+  .desktop-cols{display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start}
+  .card-lg{padding:24px!important}
+}
+@media(max-width:767px){
+  #sidebar{display:none}
+  #main-area{margin-left:0}
+  #top-bar{padding:16px!important}
+  #content-area{padding:14px 16px 90px!important}
+  .desktop-grid-2,.desktop-grid-3,.desktop-grid-4,.desktop-cols{display:block}
+  .desktop-grid-2>*,.desktop-grid-3>*,.desktop-grid-4>*{margin-bottom:10px}
+  .desktop-cols>*{margin-bottom:12px}
+}
 </style>
 </head>
 <body>
@@ -29,7 +59,6 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, setDoc, getDoc, onSnapshot }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ─── PASTE YOUR FIREBASE CONFIG BELOW ────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            "AIzaSyCJgAH6TaS_6XO95RAIOfm8Dgeiw-7EtYI",
   authDomain:        "finance-tracker007.firebaseapp.com",
@@ -38,18 +67,15 @@ const firebaseConfig = {
   messagingSenderId: "185438943798",
   appId:             "1:185438943798:web:c64f20a80bb73f1a1f3697"
 };
-// ─────────────────────────────────────────────────────────────────────────────
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-
 window.__firebase = { auth, db, GoogleAuthProvider, signInWithPopup, signOut,
   onAuthStateChanged, doc, setDoc, getDoc, onSnapshot };
 window.dispatchEvent(new Event("firebaseReady"));
 </script>
 
-<!-- React + Babel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -57,7 +83,6 @@ window.dispatchEvent(new Event("firebaseReady"));
 <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
-// ── constants ─────────────────────────────────────────────────────────────────
 const PIN_KEY = "vl_pin_v3";
 const today   = () => new Date().toISOString().split("T")[0];
 
@@ -91,17 +116,22 @@ const QUICK_DEFAULTS=[
   {icon:"✈️",label:"Travel",cat:"Travel"},
 ];
 
-const EMPTY = {
-  banks:[], cards:[], expenses:[], family:[],
-  subs:[], investments:[], netWorthHistory:[],
-  currency:"USD", quickAdds:QUICK_DEFAULTS,
-};
+const EMPTY={banks:[],cards:[],expenses:[],family:[],subs:[],investments:[],
+  netWorthHistory:[],currency:"USD",quickAdds:QUICK_DEFAULTS};
 
-// ── colours ───────────────────────────────────────────────────────────────────
-const C={
-  bg:"#0f1117",card:"#1a1d27",cardAlt:"#20243a",border:"#2a2e45",
+const C={bg:"#0f1117",card:"#1a1d27",cardAlt:"#20243a",border:"#2a2e45",
   green:"#22c55e",red:"#ef4444",amber:"#f59e0b",blue:"#3b82f6",
-  purple:"#a855f7",text:"#f1f5f9",muted:"#64748b",accent:"#7c3aed",
+  purple:"#a855f7",text:"#f1f5f9",muted:"#64748b",accent:"#7c3aed",sidebar:"#13151f"};
+
+// ── useIsMobile hook ──────────────────────────────────────────────────────────
+const useIsMobile = () => {
+  const [mobile, setMobile] = useState(window.innerWidth < 768);
+  useEffect(()=>{
+    const h=()=>setMobile(window.innerWidth<768);
+    window.addEventListener("resize",h);
+    return()=>window.removeEventListener("resize",h);
+  },[]);
+  return mobile;
 };
 
 // ── atoms ─────────────────────────────────────────────────────────────────────
@@ -144,11 +174,13 @@ const Btn=({children,onClick,color=C.accent,small=false,style={}})=>(
     padding:small?"6px 14px":"12px 20px",cursor:"pointer",fontWeight:700,
     fontSize:small?12:14,width:small?"auto":"100%",...style}}>{children}</button>
 );
-const Modal=({title,onClose,children})=>(
-  <div style={{position:"fixed",inset:0,background:"#000c",zIndex:200,display:"flex",alignItems:"flex-end"}}
-    onClick={onClose}>
-    <div onClick={e=>e.stopPropagation()} style={{background:C.card,borderRadius:"20px 20px 0 0",
-      width:"100%",padding:"20px 16px 36px",maxHeight:"93vh",overflowY:"auto"}}>
+const Modal=({title,onClose,children,isMobile})=>(
+  <div style={{position:"fixed",inset:0,background:"#000c",zIndex:200,display:"flex",
+    alignItems:isMobile?"flex-end":"center",justifyContent:"center"}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:C.card,
+      borderRadius:isMobile?"20px 20px 0 0":"20px",
+      width:isMobile?"100%":"480px",
+      padding:"24px 20px 36px",maxHeight:"93vh",overflowY:"auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div style={{fontWeight:700,fontSize:17}}>{title}</div>
         <button onClick={onClose} style={{background:C.border,border:"none",borderRadius:99,
@@ -159,15 +191,15 @@ const Modal=({title,onClose,children})=>(
   </div>
 );
 
-// ── mini bar chart ────────────────────────────────────────────────────────────
-const MiniBar=({data,color=C.accent,vk="worth",lk="month"})=>{
+// ── bar chart ─────────────────────────────────────────────────────────────────
+const MiniBar=({data,color=C.accent,vk="worth",lk="month",height=64})=>{
   const max=Math.max(...data.map(d=>d[vk]),1);
   return(
-    <div style={{display:"flex",alignItems:"flex-end",gap:6,height:64}}>
+    <div style={{display:"flex",alignItems:"flex-end",gap:6,height}}>
       {data.map((d,i)=>(
         <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
           <div style={{width:"100%",background:color,borderRadius:"4px 4px 0 0",
-            height:`${(d[vk]/max)*54}px`,minHeight:2,transition:"height .3s"}}/>
+            height:`${(d[vk]/max)*(height-12)}px`,minHeight:2,transition:"height .3s",opacity:.85}}/>
           <div style={{fontSize:9,color:C.muted}}>{d[lk]}</div>
         </div>
       ))}
@@ -175,39 +207,46 @@ const MiniBar=({data,color=C.accent,vk="worth",lk="month"})=>{
   );
 };
 
-// ── PIN screen ────────────────────────────────────────────────────────────────
+// ── stat card ─────────────────────────────────────────────────────────────────
+const StatCard=({label,value,sub,color=C.text})=>(
+  <Card>
+    <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:4}}>{label}</div>
+    <div style={{fontSize:22,fontWeight:800,color}}>{value}</div>
+    {sub&&<div style={{fontSize:11,color:C.muted,marginTop:2}}>{sub}</div>}
+  </Card>
+);
+
+// ── PIN ───────────────────────────────────────────────────────────────────────
 const PinScreen=({onUnlock})=>{
   const hasPin=!!localStorage.getItem(PIN_KEY);
   const [digits,setDigits]=useState("");
   const [error,setError]=useState("");
   const [step,setStep]=useState(hasPin?"enter":"new1");
   const [first,setFirst]=useState("");
-
   const press=(k)=>{
     if(k==="del"){setDigits(p=>p.slice(0,-1));setError("");return;}
-    const next=digits+k;
-    setDigits(next);
+    const next=digits+k;setDigits(next);
     if(next.length===4){
       if(step==="enter"){
         if(next===localStorage.getItem(PIN_KEY)){onUnlock();}
         else{setError("Wrong PIN");setTimeout(()=>{setDigits("");setError("");},600);}
-      } else if(step==="new1"){
-        setFirst(next);setDigits("");setStep("new2");
-      } else {
+      } else if(step==="new1"){setFirst(next);setDigits("");setStep("new2");}
+      else{
         if(next===first){localStorage.setItem(PIN_KEY,next);onUnlock();}
         else{setError("Don't match");setTimeout(()=>{setDigits("");setFirst("");setStep("new1");setError("");},700);}
       }
     }
   };
   const keys=["1","2","3","4","5","6","7","8","9","","0","del"];
-  const title=step==="enter"?"Enter PIN":step==="new1"?"Create PIN":"Confirm PIN";
   return(
     <div style={{background:C.bg,minHeight:"100vh",display:"flex",flexDirection:"column",
       alignItems:"center",justifyContent:"center",gap:28,padding:24}}>
       <div style={{textAlign:"center"}}>
-        <div style={{fontSize:40}}>🔐</div>
-        <div style={{fontWeight:800,fontSize:22,color:C.text,marginTop:8}}>Finance Tracker</div>
-        <div style={{fontSize:13,color:C.muted,marginTop:4}}>{title}</div>
+        <div style={{fontSize:48}}>🔐</div>
+        <div style={{fontWeight:800,fontSize:24,marginTop:10}}>Finance Tracker</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>
+          {step==="enter"?"Enter PIN":step==="new1"?"Create PIN":"Confirm PIN"}
+        </div>
       </div>
       <div style={{display:"flex",gap:16}}>
         {[0,1,2,3].map(i=>(
@@ -219,77 +258,65 @@ const PinScreen=({onUnlock})=>{
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,72px)",gap:12}}>
         {keys.map((k,i)=>(
           k===""?<div key={i}/>:
-          <button key={i} onClick={()=>press(k)} style={{height:72,borderRadius:16,border:`1px solid ${C.border}`,
-            cursor:"pointer",background:k==="del"?C.cardAlt:C.card,color:C.text,
-            fontSize:k==="del"?20:24,fontWeight:700}}>
-            {k==="del"?"⌫":k}
-          </button>
+          <button key={i} onClick={()=>press(k)} style={{height:72,borderRadius:16,
+            border:`1px solid ${C.border}`,cursor:"pointer",
+            background:k==="del"?C.cardAlt:C.card,color:C.text,
+            fontSize:k==="del"?20:24,fontWeight:700}}>{k==="del"?"⌫":k}</button>
         ))}
       </div>
-      {hasPin&&(
-        <button onClick={()=>{localStorage.removeItem(PIN_KEY);onUnlock();}}
-          style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer"}}>
-          Remove PIN
-        </button>
-      )}
+      {hasPin&&<button onClick={()=>{localStorage.removeItem(PIN_KEY);onUnlock();}}
+        style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer"}}>
+        Remove PIN</button>}
     </div>
   );
 };
 
-// ── Google login screen ───────────────────────────────────────────────────────
-const LoginScreen=({onLogin})=>{
+// ── Login ─────────────────────────────────────────────────────────────────────
+const LoginScreen=()=>{
   const [loading,setLoading]=useState(false);
   const [err,setErr]=useState("");
   const login=async()=>{
     setLoading(true);setErr("");
     try{
       const {auth,GoogleAuthProvider,signInWithPopup}=window.__firebase;
-      const provider=new GoogleAuthProvider();
-      await signInWithPopup(auth,provider);
-      onLogin();
+      await signInWithPopup(auth,new GoogleAuthProvider());
     }catch(e){setErr(e.message);setLoading(false);}
   };
   return(
     <div style={{background:C.bg,minHeight:"100vh",display:"flex",flexDirection:"column",
       alignItems:"center",justifyContent:"center",gap:24,padding:32}}>
       <div style={{textAlign:"center"}}>
-        <div style={{fontSize:48}}>💰</div>
-        <div style={{fontWeight:800,fontSize:26,color:C.text,marginTop:12}}>Finance Tracker</div>
-        <div style={{fontSize:14,color:C.muted,marginTop:6,maxWidth:260,lineHeight:1.5}}>
+        <div style={{fontSize:56}}>💰</div>
+        <div style={{fontWeight:800,fontSize:28,marginTop:12}}>Finance Tracker 007</div>
+        <div style={{fontSize:14,color:C.muted,marginTop:6,maxWidth:280,lineHeight:1.6}}>
           Sign in with Google to sync your data across all devices
         </div>
       </div>
-      <button onClick={login} disabled={loading} style={{
-        background:"#fff",color:"#1a1a1a",border:"none",borderRadius:12,
-        padding:"14px 28px",cursor:"pointer",fontWeight:700,fontSize:15,
-        display:"flex",alignItems:"center",gap:10,opacity:loading?.6:1}}>
+      <button onClick={login} disabled={loading} style={{background:"#fff",color:"#1a1a1a",
+        border:"none",borderRadius:12,padding:"14px 28px",cursor:"pointer",fontWeight:700,
+        fontSize:15,display:"flex",alignItems:"center",gap:10,opacity:loading?.6:1}}>
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"/>
         {loading?"Signing in…":"Continue with Google"}
       </button>
       {err&&<div style={{color:C.red,fontSize:12,textAlign:"center",maxWidth:280}}>{err}</div>}
-      <div style={{fontSize:11,color:C.muted,textAlign:"center",maxWidth:260,lineHeight:1.6}}>
-        Your data is private and only visible to you. Stored securely in Firebase.
-      </div>
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAIN APP
-// ═══════════════════════════════════════════════════════════════════════════════
 function App(){
-  const [fbReady,  setFbReady]  = useState(!!window.__firebase);
-  const [user,     setUser]     = useState(null);
-  const [pinOk,    setPinOk]    = useState(false);
-  const [data,     setData]     = useState(EMPTY);
-  const [tab,      setTab]      = useState("home");
-  const [modal,    setModal]    = useState(null);
-  const [form,     setForm]     = useState({});
-  const [syncSt,   setSyncSt]   = useState("idle"); // idle | saving | saved | error
-  const [cur,      setCur]      = useState("USD");
-  const saveTimer  = useRef(null);
+  const isMobile = useIsMobile();
+  const [fbReady, setFbReady] = useState(!!window.__firebase);
+  const [user,    setUser]    = useState(null);
+  const [pinOk,   setPinOk]   = useState(false);
+  const [data,    setData]    = useState(EMPTY);
+  const [tab,     setTab]     = useState("home");
+  const [modal,   setModal]   = useState(null);
+  const [form,    setForm]    = useState({});
+  const [syncSt,  setSyncSt]  = useState("idle");
+  const [cur,     setCur]     = useState("USD");
+  const saveTimer = useRef(null);
 
-  // wait for firebase module
   useEffect(()=>{
     if(window.__firebase){setFbReady(true);return;}
     const h=()=>setFbReady(true);
@@ -297,94 +324,69 @@ function App(){
     return()=>window.removeEventListener("firebaseReady",h);
   },[]);
 
-  // auth listener
   useEffect(()=>{
     if(!fbReady)return;
     const {auth,onAuthStateChanged}=window.__firebase;
-    return onAuthStateChanged(auth,u=>{
-      setUser(u);
-      if(!u){setData(EMPTY);setPinOk(false);}
-    });
+    return onAuthStateChanged(auth,u=>{setUser(u);if(!u){setData(EMPTY);setPinOk(false);}});
   },[fbReady]);
 
-  // load data from Firestore when user logs in
   useEffect(()=>{
     if(!user||!fbReady)return;
     const {db,doc,onSnapshot}=window.__firebase;
-    const ref=doc(db,"users",user.uid,"finance","data");
-    const unsub=onSnapshot(ref,snap=>{
-      if(snap.exists()){
-        const d=snap.data();
-        setData({...EMPTY,...d});
-        setCur(d.currency||"USD");
-      }
+    return onSnapshot(doc(db,"users",user.uid,"finance","data"),snap=>{
+      if(snap.exists()){const d=snap.data();setData({...EMPTY,...d});setCur(d.currency||"USD");}
     });
-    return unsub;
   },[user,fbReady]);
 
-  // save to Firestore (debounced 1.5s)
   const saveToFirestore=useCallback((d)=>{
     if(!user||!fbReady)return;
-    clearTimeout(saveTimer.current);
-    setSyncSt("saving");
+    clearTimeout(saveTimer.current);setSyncSt("saving");
     saveTimer.current=setTimeout(async()=>{
       try{
         const {db,doc,setDoc}=window.__firebase;
         await setDoc(doc(db,"users",user.uid,"finance","data"),d,{merge:true});
-        setSyncSt("saved");
-        setTimeout(()=>setSyncSt("idle"),2000);
-      }catch(e){setSyncSt("error");}
+        setSyncSt("saved");setTimeout(()=>setSyncSt("idle"),2000);
+      }catch{setSyncSt("error");}
     },1500);
   },[user,fbReady]);
 
-  const update=(fn)=>{
-    setData(prev=>{
-      const next=fn(prev);
-      saveToFirestore(next);
-      return next;
-    });
-  };
-
+  const update=(fn)=>{setData(prev=>{const next=fn(prev);saveToFirestore(next);return next;});};
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const closeModal=()=>{setModal(null);setForm({});};
 
-  // ── computed ────────────────────────────────────────────────────────────────
+  // computed
   const totalBank  = data.banks.reduce((s,b)=>s+b.balance,0);
   const totalUsed  = data.cards.reduce((s,c)=>s+c.used,0);
   const totalLimit = data.cards.reduce((s,c)=>s+c.limit,0);
   const totalSub   = data.subs.filter(s=>s.cycle==="Monthly").reduce((a,s)=>a+s.amount,0);
   const familyOwed = data.family.filter(f=>!f.paid).reduce((s,f)=>s+f.amount,0);
   const investVal  = data.investments.reduce((s,i)=>s+i.qty*i.buyPrice,0);
-  const netWorth   = totalBank - totalUsed + investVal;
-
+  const netWorth   = totalBank-totalUsed+investVal;
   const thisMonth  = new Date().toISOString().slice(0,7);
   const monthExp   = data.expenses.filter(e=>e.date.startsWith(thisMonth));
   const monthTotal = monthExp.reduce((s,e)=>s+e.amount,0);
-
   const byCat={};
   monthExp.forEach(e=>{byCat[e.cat]=(byCat[e.cat]||0)+e.amount;});
   const catList=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-
   const spendTrend=Array.from({length:6},(_,i)=>{
-    const d=new Date(); d.setMonth(d.getMonth()-(5-i));
+    const d=new Date();d.setMonth(d.getMonth()-(5-i));
     const key=d.toISOString().slice(0,7);
-    const label=d.toLocaleString("en-US",{month:"short"});
-    return{month:label,worth:data.expenses.filter(e=>e.date.startsWith(key)).reduce((s,e)=>s+e.amount,0)};
+    return{month:d.toLocaleString("en-US",{month:"short"}),
+      worth:data.expenses.filter(e=>e.date.startsWith(key)).reduce((s,e)=>s+e.amount,0)};
   });
-
   const allSources=[...data.banks.map(b=>b.name),...data.cards.map(c=>c.name)];
+  const syncColor=syncSt==="saved"?C.green:syncSt==="saving"?C.amber:syncSt==="error"?C.red:C.muted;
+  const syncLabel=syncSt==="saved"?"☁ Synced":syncSt==="saving"?"⏳ Saving…":syncSt==="error"?"✗ Error":"☁ Firebase";
 
-  // ── actions ──────────────────────────────────────────────────────────────────
+  // actions
   const addExpense=()=>{
     if(!form.desc||!form.amount||!form.source)return;
     const amt=parseFloat(form.amount);
     const e={id:Date.now(),date:form.date||today(),desc:form.desc,
       amount:amt,cat:form.cat||"Other",source:form.source,note:form.note||""};
-    update(d=>({...d,
-      expenses:[e,...d.expenses],
+    update(d=>({...d,expenses:[e,...d.expenses],
       banks:d.banks.map(b=>b.name===form.source?{...b,balance:b.balance-amt}:b),
-      cards:d.cards.map(c=>c.name===form.source?{...c,used:c.used+amt}:c),
-    }));
+      cards:d.cards.map(c=>c.name===form.source?{...c,used:c.used+amt}:c)}));
     closeModal();
   };
   const addBank=()=>{
@@ -414,13 +416,11 @@ function App(){
   };
   const addInvestment=()=>{
     if(!form.name||!form.buyPrice||!form.qty)return;
-    update(d=>({...d,investments:[...d.investments,{
-      id:Date.now(),type:form.itype||"Stock",name:form.name,
-      ticker:(form.ticker||form.name).toUpperCase(),
+    update(d=>({...d,investments:[...d.investments,{id:Date.now(),type:form.itype||"Stock",
+      name:form.name,ticker:(form.ticker||form.name).toUpperCase(),
       qty:parseFloat(form.qty),buyPrice:parseFloat(form.buyPrice),
       buyDate:form.buyDate||today(),platform:form.platform||"",
-      target:parseFloat(form.target)||0,note:form.note||""
-    }]}));
+      target:parseFloat(form.target)||0,note:form.note||""}]}));
     closeModal();
   };
   const markFamilyPaid=(id)=>update(d=>({...d,
@@ -428,135 +428,124 @@ function App(){
   const del=(section,id)=>update(d=>({...d,[section]:d[section].filter(x=>x.id!==id)}));
   const updateBankBalance=(id,val)=>update(d=>({...d,
     banks:d.banks.map(b=>b.id===id?{...b,balance:parseFloat(val)||0}:b)}));
-
   const exportCSV=()=>{
     const rows=[["Date","Description","Category","Amount","Source","Note"]];
     data.expenses.forEach(e=>rows.push([e.date,e.desc,e.cat,e.amount,e.source,e.note||""]));
-    const csv=rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");
     const a=document.createElement("a");
-    a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+    a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n"));
     a.download=`finance_${today()}.csv`;a.click();
   };
-
-  const signOutUser=async()=>{
-    const {auth,signOut}=window.__firebase;
-    await signOut(auth);
-    setPinOk(false);
-  };
-
+  const signOutUser=async()=>{const {auth,signOut}=window.__firebase;await signOut(auth);setPinOk(false);};
   const changeCurrency=(c)=>{setCur(c);update(d=>({...d,currency:c}));};
 
-  // ── sync indicator ───────────────────────────────────────────────────────────
-  const syncColor=syncSt==="saved"?C.green:syncSt==="saving"?C.amber:syncSt==="error"?C.red:C.muted;
-  const syncLabel=syncSt==="saved"?"☁ Synced":syncSt==="saving"?"⏳ Saving…":syncSt==="error"?"✗ Error":"☁ Firebase";
-
-  // ── TABS ─────────────────────────────────────────────────────────────────────
+  // ── TAB DEFINITIONS ───────────────────────────────────────────────────────────
   const TABS=[
-    {id:"home",icon:"🏠",label:"Home"},
+    {id:"home",   icon:"🏠", label:"Home"},
     {id:"accounts",icon:"💰",label:"Accounts"},
     {id:"expenses",icon:"📊",label:"Spend"},
-    {id:"invest",icon:"📈",label:"Invest"},
-    {id:"more",icon:"⋯",label:"More"},
+    {id:"invest",  icon:"📈",label:"Invest"},
+    {id:"family",  icon:"👨‍👩‍👧",label:"Family"},
+    {id:"subs",    icon:"🔁",label:"Subs"},
+    {id:"settings",icon:"⚙️",label:"Settings"},
   ];
 
-  // ── HOME ─────────────────────────────────────────────────────────────────────
-  const HomeTab=()=>(
+  // ── HOME CONTENT ──────────────────────────────────────────────────────────────
+  const HomeContent=()=>(
     <div>
-      <Card style={{background:"linear-gradient(135deg,#1e1b4b,#312e81)",marginBottom:12}}>
+      {/* hero */}
+      <Card style={{background:"linear-gradient(135deg,#1e1b4b,#312e81)",marginBottom:16,padding:isMobile?16:28}}>
         <div style={{fontSize:11,color:"#a5b4fc",fontWeight:600}}>NET WORTH</div>
-        <div style={{fontSize:34,fontWeight:800,color:"#fff"}}>{fmt(netWorth,cur)}</div>
-        <div style={{fontSize:12,color:"#86efac",marginTop:4}}>
-          Bank {fmt(totalBank,cur)} · Cards −{fmt(totalUsed,cur)} · Invest {fmt(investVal,cur)}
+        <div style={{fontSize:isMobile?34:48,fontWeight:800,color:"#fff"}}>{fmt(netWorth,cur)}</div>
+        <div style={{fontSize:13,color:"#86efac",marginTop:6}}>
+          Bank {fmt(totalBank,cur)} &nbsp;·&nbsp; Cards −{fmt(totalUsed,cur)} &nbsp;·&nbsp; Invest {fmt(investVal,cur)}
         </div>
         <div style={{fontSize:11,color:"#c4b5fd",marginTop:4}}>
-          👤 {user.displayName} &nbsp;·&nbsp; {syncLabel}
+          👤 {user.displayName} &nbsp;·&nbsp;
+          <span style={{color:syncColor}}>{syncLabel}</span>
         </div>
       </Card>
 
       {/* quick add */}
-      <div style={{marginBottom:12}}>
+      <div style={{marginBottom:16}}>
         <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:8}}>QUICK ADD</div>
         <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
           {(data.quickAdds||QUICK_DEFAULTS).map((q,i)=>(
             <button key={i} onClick={()=>{setForm({cat:q.cat,desc:q.label});setModal("addExpense");}}
               style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,
-                padding:"8px 14px",cursor:"pointer",color:C.text,
+                padding:"10px 16px",cursor:"pointer",color:C.text,
                 display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                minWidth:64,flexShrink:0}}>
-              <span style={{fontSize:22}}>{q.icon}</span>
+                minWidth:70,flexShrink:0}}>
+              <span style={{fontSize:24}}>{q.icon}</span>
               <span style={{fontSize:10,color:C.muted}}>{q.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-        <Card>
-          <div style={{fontSize:11,color:C.muted,fontWeight:600}}>THIS MONTH</div>
-          <div style={{fontSize:20,fontWeight:700,color:C.red}}>{fmt(monthTotal,cur)}</div>
-          <div style={{fontSize:11,color:C.muted}}>{monthExp.length} transactions</div>
-        </Card>
-        <Card>
-          <div style={{fontSize:11,color:C.muted,fontWeight:600}}>SUBSCRIPTIONS</div>
-          <div style={{fontSize:20,fontWeight:700,color:C.amber}}>{fmt(totalSub,cur)}/mo</div>
-          <div style={{fontSize:11,color:C.muted}}>{data.subs.length} active</div>
-        </Card>
-        <Card>
-          <div style={{fontSize:11,color:C.muted,fontWeight:600}}>FAMILY OWED</div>
-          <div style={{fontSize:20,fontWeight:700,color:C.purple}}>{fmt(familyOwed,cur)}</div>
-          <div style={{fontSize:11,color:C.muted}}>{data.family.filter(f=>!f.paid).length} pending</div>
-        </Card>
-        <Card>
-          <div style={{fontSize:11,color:C.muted,fontWeight:600}}>AVAIL. CREDIT</div>
-          <div style={{fontSize:20,fontWeight:700,color:C.green}}>{fmt(totalLimit-totalUsed,cur)}</div>
-          <div style={{fontSize:11,color:C.muted}}>{Math.round((totalUsed/totalLimit)*100)||0}% used</div>
-        </Card>
+      {/* stats grid */}
+      <div className="desktop-grid-4" style={{marginBottom:16}}>
+        <StatCard label="THIS MONTH" value={fmt(monthTotal,cur)}
+          sub={`${monthExp.length} transactions`} color={C.red}/>
+        <StatCard label="SUBSCRIPTIONS" value={`${fmt(totalSub,cur)}/mo`}
+          sub={`${data.subs.length} active`} color={C.amber}/>
+        <StatCard label="FAMILY OWED" value={fmt(familyOwed,cur)}
+          sub={`${data.family.filter(f=>!f.paid).length} pending`} color={C.purple}/>
+        <StatCard label="AVAIL. CREDIT" value={fmt(totalLimit-totalUsed,cur)}
+          sub={`${Math.round((totalUsed/totalLimit)*100)||0}% used`} color={C.green}/>
       </div>
 
-      <Card style={{marginBottom:12}}>
-        <div style={{fontWeight:700,marginBottom:12}}>Spending Trend (6 months)</div>
-        <MiniBar data={spendTrend} color={C.accent}/>
-      </Card>
-
-      {data.netWorthHistory.length>0&&(
-        <Card style={{marginBottom:12}}>
-          <div style={{fontWeight:700,marginBottom:12}}>Net Worth History</div>
-          <MiniBar data={data.netWorthHistory} color={C.green}/>
-        </Card>
-      )}
-
-      <Card style={{marginBottom:12}}>
-        <div style={{fontWeight:700,marginBottom:12}}>Top Categories This Month</div>
-        {catList.length===0
-          ?<div style={{color:C.muted,fontSize:13}}>No expenses yet this month</div>
-          :catList.slice(0,6).map(([cat,amt])=>(
-          <div key={cat} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
-              <span>{cat}</span><span style={{fontWeight:700}}>{fmt(amt,cur)}</span>
-            </div>
-            <div style={{height:6,background:C.border,borderRadius:99}}>
-              <div style={{height:6,background:CAT_COLORS[cat]||C.accent,
-                borderRadius:99,width:`${(amt/monthTotal)*100}%`}}/>
-            </div>
-          </div>
-        ))}
-      </Card>
-
-      {(()=>{
-        const g=monthExp.filter(e=>e.cat==="Gifts").reduce((s,e)=>s+e.amount,0);
-        if(!g)return null;
-        return(
-          <Card style={{borderLeft:`4px solid ${C.amber}`,marginBottom:12}}>
-            <div style={{fontSize:11,color:C.amber,fontWeight:600}}>🎁 GIFTS THIS MONTH</div>
-            <div style={{fontSize:22,fontWeight:800}}>{fmt(g,cur)}</div>
-            <div style={{fontSize:12,color:C.muted}}>{monthExp.filter(e=>e.cat==="Gifts").length} gift transactions</div>
+      {/* charts row */}
+      <div className="desktop-cols" style={{marginBottom:16}}>
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{fontWeight:700,marginBottom:12}}>Spending Trend (6 months)</div>
+            <MiniBar data={spendTrend} color={C.accent} height={isMobile?64:100}/>
           </Card>
-        );
-      })()}
+          {data.netWorthHistory.length>0&&(
+            <Card>
+              <div style={{fontWeight:700,marginBottom:12}}>Net Worth History</div>
+              <MiniBar data={data.netWorthHistory} color={C.green} height={isMobile?64:100}/>
+            </Card>
+          )}
+        </div>
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{fontWeight:700,marginBottom:12}}>Top Categories</div>
+            {catList.length===0
+              ?<div style={{color:C.muted,fontSize:13}}>No expenses yet</div>
+              :catList.slice(0,6).map(([cat,amt])=>(
+              <div key={cat} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
+                  <span>{cat}</span><span style={{fontWeight:700}}>{fmt(amt,cur)}</span>
+                </div>
+                <div style={{height:6,background:C.border,borderRadius:99}}>
+                  <div style={{height:6,background:CAT_COLORS[cat]||C.accent,
+                    borderRadius:99,width:`${(amt/monthTotal)*100}%`}}/>
+                </div>
+              </div>
+            ))}
+          </Card>
+          {(()=>{
+            const g=monthExp.filter(e=>e.cat==="Gifts").reduce((s,e)=>s+e.amount,0);
+            if(!g)return null;
+            return(
+              <Card style={{borderLeft:`4px solid ${C.amber}`}}>
+                <div style={{fontSize:11,color:C.amber,fontWeight:600}}>🎁 GIFTS THIS MONTH</div>
+                <div style={{fontSize:24,fontWeight:800}}>{fmt(g,cur)}</div>
+                <div style={{fontSize:12,color:C.muted}}>{monthExp.filter(e=>e.cat==="Gifts").length} transactions</div>
+              </Card>
+            );
+          })()}
+        </div>
+      </div>
 
+      {/* recent */}
       <Card>
-        <div style={{fontWeight:700,marginBottom:12}}>Recent Transactions</div>
-        {data.expenses.slice(0,5).map(e=>(
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:16}}>Recent Transactions</div>
+          {!isMobile&&<Btn onClick={()=>setTab("expenses")} color={C.border} small>View all →</Btn>}
+        </div>
+        {data.expenses.slice(0,isMobile?5:10).map(e=>(
           <div key={e.id} style={{display:"flex",justifyContent:"space-between",
             alignItems:"flex-start",paddingBottom:10,marginBottom:10,borderBottom:`1px solid ${C.border}`}}>
             <div style={{flex:1,paddingRight:8}}>
@@ -573,396 +562,466 @@ function App(){
     </div>
   );
 
-  // ── ACCOUNTS ─────────────────────────────────────────────────────────────────
-  const AccountsTab=()=>{
+  // ── ACCOUNTS CONTENT ──────────────────────────────────────────────────────────
+  const AccountsContent=()=>{
     const [editId,setEditId]=useState(null);
     const [editVal,setEditVal]=useState("");
     return(
       <div>
-        <div style={{fontWeight:700,fontSize:18,marginBottom:12}}>Bank Accounts</div>
-        {data.banks.map(b=>(
-          <Card key={b.id} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                <span style={{fontSize:28}}>{b.icon}</span>
-                <div><div style={{fontWeight:700}}>{b.name}</div><Tag label={b.type.toUpperCase()} color={C.blue}/></div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                {editId===b.id
-                  ?<div style={{display:"flex",gap:6}}>
-                    <input value={editVal} onChange={e=>setEditVal(e.target.value)} type="number"
-                      style={{width:90,background:C.cardAlt,border:`1px solid ${C.border}`,
-                        borderRadius:8,padding:"4px 8px",color:C.text,fontSize:14}}/>
-                    <button onClick={()=>{updateBankBalance(b.id,editVal);setEditId(null);}}
-                      style={{background:C.green,border:"none",borderRadius:8,
-                        padding:"4px 10px",color:"#fff",cursor:"pointer",fontWeight:700}}>✓</button>
-                  </div>
-                  :<div style={{fontWeight:800,fontSize:20,color:b.balance>=0?C.green:C.red}}
-                    onClick={()=>{setEditId(b.id);setEditVal(b.balance);}}>
-                    {fmt(b.balance,cur)}
-                  </div>
-                }
-                <div style={{fontSize:11,color:C.muted}}>tap to edit</div>
-              </div>
-            </div>
-          </Card>
-        ))}
-        <Btn onClick={()=>setModal("addBank")} style={{marginBottom:20}}>+ Add Bank Account</Btn>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:20}}>Accounts</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={()=>setModal("addBank")} small>+ Bank</Btn>
+            <Btn onClick={()=>setModal("addCard")} color={C.blue} small>+ Card</Btn>
+          </div>
+        </div>
 
-        <div style={{fontWeight:700,fontSize:18,marginBottom:12}}>Credit Cards</div>
-        {data.cards.map(c=>{
-          const pct=Math.round((c.used/c.limit)*100)||0;
-          const col=pct>80?C.red:pct>50?C.amber:C.green;
-          return(
-            <Card key={c.id} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                  <span style={{fontSize:28}}>{c.icon}</span>
-                  <div style={{fontWeight:700}}>{c.name}</div>
+        <div className="desktop-grid-2">
+          <div>
+            <div style={{fontWeight:600,fontSize:14,color:C.muted,marginBottom:10}}>BANK ACCOUNTS</div>
+            {data.banks.map(b=>(
+              <Card key={b.id} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <span style={{fontSize:28}}>{b.icon}</span>
+                    <div><div style={{fontWeight:700}}>{b.name}</div><Tag label={b.type.toUpperCase()} color={C.blue}/></div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    {editId===b.id
+                      ?<div style={{display:"flex",gap:6}}>
+                        <input value={editVal} onChange={e=>setEditVal(e.target.value)} type="number"
+                          style={{width:90,background:C.cardAlt,border:`1px solid ${C.border}`,
+                            borderRadius:8,padding:"4px 8px",color:C.text,fontSize:14}}/>
+                        <button onClick={()=>{updateBankBalance(b.id,editVal);setEditId(null);}}
+                          style={{background:C.green,border:"none",borderRadius:8,
+                            padding:"4px 10px",color:"#fff",cursor:"pointer",fontWeight:700}}>✓</button>
+                      </div>
+                      :<div style={{fontWeight:800,fontSize:20,color:b.balance>=0?C.green:C.red,cursor:"pointer"}}
+                        onClick={()=>{setEditId(b.id);setEditVal(b.balance);}}>
+                        {fmt(b.balance,cur)}
+                      </div>
+                    }
+                    <div style={{fontSize:11,color:C.muted}}>tap to edit</div>
+                  </div>
                 </div>
-                <Tag label={`${pct}% USED`} color={col}/>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
-                <span style={{color:C.muted}}>Used</span>
-                <span style={{fontWeight:700,color:C.red}}>{fmt(c.used,cur)}</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:8}}>
-                <span style={{color:C.muted}}>Available</span>
-                <span style={{fontWeight:700,color:C.green}}>{fmt(c.limit-c.used,cur)}</span>
-              </div>
-              <div style={{height:8,background:C.border,borderRadius:99}}>
-                <div style={{height:8,background:col,borderRadius:99,width:`${pct}%`}}/>
-              </div>
-              <div style={{fontSize:11,color:C.muted,marginTop:4}}>Limit: {fmt(c.limit,cur)}</div>
-            </Card>
-          );
-        })}
-        <Btn onClick={()=>setModal("addCard")}>+ Add Credit Card</Btn>
+              </Card>
+            ))}
+            {data.banks.length===0&&<div style={{color:C.muted,fontSize:13,padding:"20px 0"}}>No bank accounts yet</div>}
+          </div>
+
+          <div>
+            <div style={{fontWeight:600,fontSize:14,color:C.muted,marginBottom:10}}>CREDIT CARDS</div>
+            {data.cards.map(c=>{
+              const pct=Math.round((c.used/c.limit)*100)||0;
+              const col=pct>80?C.red:pct>50?C.amber:C.green;
+              return(
+                <Card key={c.id} style={{marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                      <span style={{fontSize:28}}>{c.icon}</span>
+                      <div style={{fontWeight:700}}>{c.name}</div>
+                    </div>
+                    <Tag label={`${pct}% USED`} color={col}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
+                    <span style={{color:C.muted}}>Used</span>
+                    <span style={{fontWeight:700,color:C.red}}>{fmt(c.used,cur)}</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:8}}>
+                    <span style={{color:C.muted}}>Available</span>
+                    <span style={{fontWeight:700,color:C.green}}>{fmt(c.limit-c.used,cur)}</span>
+                  </div>
+                  <div style={{height:8,background:C.border,borderRadius:99}}>
+                    <div style={{height:8,background:col,borderRadius:99,width:`${pct}%`}}/>
+                  </div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:4}}>Limit: {fmt(c.limit,cur)}</div>
+                </Card>
+              );
+            })}
+            {data.cards.length===0&&<div style={{color:C.muted,fontSize:13,padding:"20px 0"}}>No cards yet</div>}
+          </div>
+        </div>
       </div>
     );
   };
 
-  // ── EXPENSES ─────────────────────────────────────────────────────────────────
-  const ExpensesTab=()=>{
+  // ── EXPENSES CONTENT ──────────────────────────────────────────────────────────
+  const ExpensesContent=()=>{
     const [filterCat,setFilterCat]=useState("All");
     const filtered=filterCat==="All"?data.expenses:data.expenses.filter(e=>e.cat===filterCat);
     return(
       <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontWeight:700,fontSize:18}}>Expenses</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:20}}>Expenses</div>
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={exportCSV} color={C.border} small>⬇ CSV</Btn>
             <Btn onClick={()=>setModal("addExpense")} small>+ Add</Btn>
           </div>
         </div>
-        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:12}}>
+        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:16}}>
           {["All",...CATS].map(c=>(
             <Pill key={c} active={filterCat===c} onClick={()=>setFilterCat(c)}>{c}</Pill>
           ))}
         </div>
-        {filtered.length===0
-          ?<div style={{color:C.muted,textAlign:"center",paddingTop:40}}>No expenses yet</div>
-          :filtered.map(e=>(
-          <Card key={e.id} style={{marginBottom:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div style={{flex:1,paddingRight:8}}>
-                <div style={{fontWeight:600,fontSize:15}}>{e.desc}</div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{e.date} · {e.source}</div>
-                {e.note&&<div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:4}}>📝 {e.note}</div>}
-                <div style={{marginTop:6}}><Tag label={e.cat} color={CAT_COLORS[e.cat]||C.accent}/></div>
+        <div className="desktop-grid-2">
+          {filtered.length===0
+            ?<div style={{color:C.muted,textAlign:"center",paddingTop:40}}>No expenses yet</div>
+            :filtered.map(e=>(
+            <Card key={e.id} style={{marginBottom:isMobile?8:0}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1,paddingRight:8}}>
+                  <div style={{fontWeight:600,fontSize:15}}>{e.desc}</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{e.date} · {e.source}</div>
+                  {e.note&&<div style={{fontSize:12,color:C.muted,fontStyle:"italic",marginTop:4}}>📝 {e.note}</div>}
+                  <div style={{marginTop:6}}><Tag label={e.cat} color={CAT_COLORS[e.cat]||C.accent}/></div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
+                  <div style={{fontWeight:800,fontSize:16,color:C.red}}>−{fmt(e.amount,cur)}</div>
+                  <button onClick={()=>del("expenses",e.id)}
+                    style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16}}>🗑</button>
+                </div>
               </div>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
-                <div style={{fontWeight:800,fontSize:16,color:C.red}}>−{fmt(e.amount,cur)}</div>
-                <button onClick={()=>del("expenses",e.id)}
-                  style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16}}>🗑</button>
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))}
+        </div>
       </div>
     );
   };
 
-  // ── INVESTMENTS ───────────────────────────────────────────────────────────────
-  const InvestTab=()=>{
+  // ── INVESTMENTS CONTENT ───────────────────────────────────────────────────────
+  const InvestContent=()=>{
     const [filter,setFilter]=useState("All");
     const filtered=filter==="All"?data.investments:data.investments.filter(i=>i.type===filter);
     const totalCost=data.investments.reduce((s,i)=>s+i.qty*i.buyPrice,0);
     return(
       <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontWeight:700,fontSize:18}}>Investments</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:20}}>Investments</div>
           <Btn onClick={()=>setModal("addInvestment")} small>+ Add</Btn>
         </div>
-        <Card style={{background:"linear-gradient(135deg,#052e16,#14532d)",marginBottom:12}}>
+        <Card style={{background:"linear-gradient(135deg,#052e16,#14532d)",marginBottom:16,padding:isMobile?16:24}}>
           <div style={{fontSize:11,color:"#86efac",fontWeight:600}}>TOTAL INVESTED</div>
-          <div style={{fontSize:30,fontWeight:800,color:"#fff"}}>{fmt(totalCost,cur)}</div>
+          <div style={{fontSize:isMobile?28:40,fontWeight:800,color:"#fff"}}>{fmt(totalCost,cur)}</div>
           <div style={{fontSize:12,color:"#6ee7b7",marginTop:4}}>{data.investments.length} positions</div>
         </Card>
-        <div style={{display:"flex",gap:8,marginBottom:12}}>
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
           {["All","Crypto","Stock","ETF","Mutual Fund"].map(f=>(
             <Pill key={f} active={filter===f} onClick={()=>setFilter(f)}>{f}</Pill>
           ))}
         </div>
-        {filtered.map(inv=>{
-          const cost=inv.qty*inv.buyPrice;
-          const gainPct=inv.target?Math.round(((inv.target-inv.buyPrice)/inv.buyPrice)*100):null;
-          return(
-            <Card key={inv.id} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                <div>
-                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span style={{fontSize:20}}>{inv.type==="Crypto"?"₿":"📊"}</span>
-                    <div style={{fontWeight:700,fontSize:16}}>{inv.name}</div>
-                    <Tag label={inv.ticker} color={inv.type==="Crypto"?C.amber:C.blue}/>
-                  </div>
-                  <div style={{fontSize:12,color:C.muted,marginTop:4}}>
-                    {inv.platform} · {inv.buyDate}
-                  </div>
-                </div>
-                <button onClick={()=>del("investments",inv.id)}
-                  style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16}}>🗑</button>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
-                {[["QTY",inv.qty],["BUY PRICE",fmt(inv.buyPrice,cur)],["TOTAL COST",fmt(cost,cur)]].map(([l,v])=>(
-                  <div key={l} style={{background:C.cardAlt,borderRadius:10,padding:"8px 10px"}}>
-                    <div style={{fontSize:10,color:C.muted}}>{l}</div>
-                    <div style={{fontWeight:700,fontSize:13}}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              {inv.target>0&&(
-                <div style={{background:C.cardAlt,borderRadius:10,padding:"10px 12px",marginBottom:8}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:10,color:C.muted}}>🎯 SELL TARGET</div>
-                      <div style={{fontWeight:700,color:C.green}}>{fmt(inv.target,cur)} / unit</div>
-                      <div style={{fontSize:12,color:C.muted}}>Total: {fmt(inv.qty*inv.target,cur)}</div>
+        <div className="desktop-grid-2">
+          {filtered.map(inv=>{
+            const cost=inv.qty*inv.buyPrice;
+            const gainPct=inv.target?Math.round(((inv.target-inv.buyPrice)/inv.buyPrice)*100):null;
+            return(
+              <Card key={inv.id} style={{marginBottom:isMobile?10:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <span style={{fontSize:20}}>{inv.type==="Crypto"?"₿":"📊"}</span>
+                      <div style={{fontWeight:700,fontSize:16}}>{inv.name}</div>
+                      <Tag label={inv.ticker} color={inv.type==="Crypto"?C.amber:C.blue}/>
                     </div>
-                    {gainPct!==null&&(
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:10,color:C.muted}}>EXPECTED GAIN</div>
-                        <div style={{fontWeight:800,fontSize:20,color:gainPct>=0?C.green:C.red}}>
-                          {gainPct>=0?"+":""}{gainPct}%
-                        </div>
-                      </div>
-                    )}
+                    <div style={{fontSize:12,color:C.muted,marginTop:4}}>{inv.platform} · {inv.buyDate}</div>
                   </div>
+                  <button onClick={()=>del("investments",inv.id)}
+                    style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:16}}>🗑</button>
                 </div>
-              )}
-              {inv.note&&<div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>📝 {inv.note}</div>}
-            </Card>
-          );
-        })}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+                  {[["QTY",inv.qty],["BUY PRICE",fmt(inv.buyPrice,cur)],["TOTAL COST",fmt(cost,cur)]].map(([l,v])=>(
+                    <div key={l} style={{background:C.cardAlt,borderRadius:10,padding:"8px 10px"}}>
+                      <div style={{fontSize:10,color:C.muted}}>{l}</div>
+                      <div style={{fontWeight:700,fontSize:13}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                {inv.target>0&&(
+                  <div style={{background:C.cardAlt,borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <div style={{fontSize:10,color:C.muted}}>🎯 SELL TARGET</div>
+                        <div style={{fontWeight:700,color:C.green}}>{fmt(inv.target,cur)} / unit</div>
+                        <div style={{fontSize:12,color:C.muted}}>Total: {fmt(inv.qty*inv.target,cur)}</div>
+                      </div>
+                      {gainPct!==null&&(
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:10,color:C.muted}}>EXPECTED GAIN</div>
+                          <div style={{fontWeight:800,fontSize:20,color:gainPct>=0?C.green:C.red}}>
+                            {gainPct>=0?"+":""}{gainPct}%
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {inv.note&&<div style={{fontSize:12,color:C.muted,fontStyle:"italic"}}>📝 {inv.note}</div>}
+              </Card>
+            );
+          })}
+        </div>
         {filtered.length===0&&<div style={{color:C.muted,textAlign:"center",paddingTop:30}}>No investments yet</div>}
       </div>
     );
   };
 
-  // ── MORE ──────────────────────────────────────────────────────────────────────
-  const MoreTab=()=>{
-    const [sec,setSec]=useState("family");
-    const monthlyTotal=data.subs.filter(s=>s.cycle==="Monthly").reduce((a,s)=>a+s.amount,0);
-    const yearlyTotal=data.subs.reduce((a,s)=>a+(s.cycle==="Monthly"?s.amount*12:s.amount),0);
-    return(
-      <div>
-        <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
-          {[{id:"family",l:"👨‍👩‍👧 Family"},{id:"subs",l:"🔁 Subs"},{id:"settings",l:"⚙️ Settings"}].map(s=>(
-            <Pill key={s.id} active={sec===s.id} onClick={()=>setSec(s.id)}>{s.l}</Pill>
+  // ── FAMILY CONTENT ────────────────────────────────────────────────────────────
+  const FamilyContent=()=>(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontWeight:700,fontSize:20}}>Family Money</div>
+        <Btn onClick={()=>setModal("addFamily")} small>+ Add</Btn>
+      </div>
+      <Card style={{background:"linear-gradient(135deg,#1e1b4b,#312e81)",marginBottom:16,padding:isMobile?16:24}}>
+        <div style={{fontSize:11,color:"#a5b4fc",fontWeight:600}}>OUTSTANDING</div>
+        <div style={{fontSize:isMobile?28:40,fontWeight:800}}>{fmt(familyOwed,cur)}</div>
+      </Card>
+      <div className="desktop-grid-2">
+        <div>
+          <div style={{fontWeight:600,fontSize:13,color:C.muted,marginBottom:10}}>PENDING</div>
+          {data.family.filter(f=>!f.paid).map(f=>(
+            <Card key={f.id} style={{marginBottom:10,borderLeft:`4px solid ${C.amber}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div>
+                  <div style={{fontWeight:700}}>👤 {f.name}</div>
+                  <div style={{fontSize:12,color:C.muted}}>{f.date}{f.note?` · ${f.note}`:""}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontWeight:800,color:C.amber}}>{fmt(f.amount,cur)}</div>
+                  <button onClick={()=>markFamilyPaid(f.id)}
+                    style={{marginTop:6,background:C.green,border:"none",borderRadius:8,
+                      padding:"4px 12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>
+                    Paid ✓
+                  </button>
+                </div>
+              </div>
+            </Card>
+          ))}
+          {data.family.filter(f=>!f.paid).length===0&&
+            <div style={{color:C.muted,fontSize:13}}>No pending payments</div>}
+        </div>
+        <div>
+          <div style={{fontWeight:600,fontSize:13,color:C.muted,marginBottom:10}}>SETTLED</div>
+          {data.family.filter(f=>f.paid).map(f=>(
+            <Card key={f.id} style={{marginBottom:8,opacity:.6}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <div>
+                  <div style={{fontWeight:700}}>👤 {f.name}</div>
+                  <div style={{fontSize:12,color:C.muted}}>Paid {f.paidDate}</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                  <div style={{fontWeight:700,color:C.green}}>{fmt(f.amount,cur)}</div>
+                  <Tag label="PAID" color={C.green}/>
+                  <button onClick={()=>del("family",f.id)}
+                    style={{background:"none",border:"none",color:C.muted,cursor:"pointer"}}>🗑</button>
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
+      </div>
+    </div>
+  );
 
-        {sec==="family"&&(
-          <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontWeight:700,fontSize:18}}>Family Money</div>
-              <Btn onClick={()=>setModal("addFamily")} small>+ Add</Btn>
-            </div>
-            <Card style={{background:"linear-gradient(135deg,#1e1b4b,#312e81)",marginBottom:16}}>
-              <div style={{fontSize:11,color:"#a5b4fc",fontWeight:600}}>OUTSTANDING</div>
-              <div style={{fontSize:28,fontWeight:800}}>{fmt(familyOwed,cur)}</div>
-            </Card>
-            {data.family.filter(f=>!f.paid).map(f=>(
-              <Card key={f.id} style={{marginBottom:10,borderLeft:`4px solid ${C.amber}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                  <div>
-                    <div style={{fontWeight:700}}>👤 {f.name}</div>
-                    <div style={{fontSize:12,color:C.muted}}>{f.date}{f.note?` · ${f.note}`:""}</div>
+  // ── SUBS CONTENT ──────────────────────────────────────────────────────────────
+  const SubsContent=()=>{
+    const monthly=data.subs.filter(s=>s.cycle==="Monthly").reduce((a,s)=>a+s.amount,0);
+    const yearly=data.subs.reduce((a,s)=>a+(s.cycle==="Monthly"?s.amount*12:s.amount),0);
+    return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:20}}>Subscriptions</div>
+          <Btn onClick={()=>setModal("addSub")} small>+ Add</Btn>
+        </div>
+        <div className="desktop-grid-4" style={{marginBottom:16}}>
+          <StatCard label="MONTHLY" value={fmt(monthly,cur)} color={C.amber}/>
+          <StatCard label="YEARLY" value={fmt(yearly,cur)} color={C.red}/>
+          <StatCard label="ACTIVE" value={data.subs.length} sub="subscriptions"/>
+        </div>
+        <div className="desktop-grid-3">
+          {data.subs.map(s=>{
+            const days=Math.ceil((new Date(s.nextDate)-new Date())/(864e5));
+            return(
+              <Card key={s.id} style={{marginBottom:isMobile?10:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                    <span style={{fontSize:30}}>{s.icon}</span>
+                    <div>
+                      <div style={{fontWeight:700}}>{s.name}</div>
+                      <div style={{fontSize:12,color:days<=3?C.red:C.muted}}>
+                        {days<=3?`⚠️ Due in ${days}d`:`Next: ${s.nextDate}`} · {s.cycle}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontWeight:800,color:C.amber}}>{fmt(f.amount,cur)}</div>
-                    <button onClick={()=>markFamilyPaid(f.id)}
-                      style={{marginTop:6,background:C.green,border:"none",borderRadius:8,
-                        padding:"4px 12px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>
-                      Paid ✓
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-            {data.family.filter(f=>f.paid).length>0&&(
-              <div style={{fontSize:12,color:C.muted,fontWeight:600,margin:"12px 0 8px"}}>SETTLED</div>
-            )}
-            {data.family.filter(f=>f.paid).map(f=>(
-              <Card key={f.id} style={{marginBottom:8,opacity:.6}}>
-                <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <div>
-                    <div style={{fontWeight:700}}>👤 {f.name}</div>
-                    <div style={{fontSize:12,color:C.muted}}>Paid {f.paidDate}</div>
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-                    <div style={{fontWeight:700,color:C.green}}>{fmt(f.amount,cur)}</div>
-                    <Tag label="PAID" color={C.green}/>
-                    <button onClick={()=>del("family",f.id)}
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                    <div style={{fontWeight:800}}>{fmt(s.amount,cur)}</div>
+                    <button onClick={()=>del("subs",s.id)}
                       style={{background:"none",border:"none",color:C.muted,cursor:"pointer"}}>🗑</button>
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
-        )}
-
-        {sec==="subs"&&(
-          <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontWeight:700,fontSize:18}}>Subscriptions</div>
-              <Btn onClick={()=>setModal("addSub")} small>+ Add</Btn>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-              <Card>
-                <div style={{fontSize:11,color:C.muted,fontWeight:600}}>MONTHLY</div>
-                <div style={{fontSize:22,fontWeight:800,color:C.amber}}>{fmt(monthlyTotal,cur)}</div>
-              </Card>
-              <Card>
-                <div style={{fontSize:11,color:C.muted,fontWeight:600}}>YEARLY</div>
-                <div style={{fontSize:22,fontWeight:800,color:C.red}}>{fmt(yearlyTotal,cur)}</div>
-              </Card>
-            </div>
-            {data.subs.map(s=>{
-              const days=Math.ceil((new Date(s.nextDate)-new Date())/(864e5));
-              return(
-                <Card key={s.id} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{display:"flex",gap:12,alignItems:"center"}}>
-                      <span style={{fontSize:28}}>{s.icon}</span>
-                      <div>
-                        <div style={{fontWeight:700}}>{s.name}</div>
-                        <div style={{fontSize:12,color:days<=3?C.red:C.muted}}>
-                          {days<=3?`⚠️ Due in ${days}d`:`Next: ${s.nextDate}`} · {s.cycle}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-                      <div style={{fontWeight:800}}>{fmt(s.amount,cur)}</div>
-                      <button onClick={()=>del("subs",s.id)}
-                        style={{background:"none",border:"none",color:C.muted,cursor:"pointer"}}>🗑</button>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {sec==="settings"&&(
-          <div>
-            <div style={{fontWeight:700,fontSize:18,marginBottom:16}}>Settings</div>
-            <Card style={{marginBottom:12}}>
-              <div style={{fontWeight:600,marginBottom:4}}>Signed in as</div>
-              <div style={{fontSize:13,color:C.muted,marginBottom:12}}>{user.email}</div>
-              <Btn onClick={signOutUser} color={C.border}>Sign Out</Btn>
-            </Card>
-            <Card style={{marginBottom:12}}>
-              <div style={{fontWeight:600,marginBottom:12}}>Display Currency</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                {Object.keys(CURRENCIES).map(c=>(
-                  <Pill key={c} active={cur===c} onClick={()=>changeCurrency(c)}>{c} {CURRENCIES[c].symbol}</Pill>
-                ))}
-              </div>
-              <div style={{fontSize:11,color:C.muted,marginTop:8}}>Approximate rates, display only.</div>
-            </Card>
-            <Card style={{marginBottom:12}}>
-              <div style={{fontWeight:600,marginBottom:8}}>Export Data</div>
-              <Btn onClick={exportCSV} color={C.blue}>⬇ Export CSV</Btn>
-            </Card>
-            <Card style={{marginBottom:12}}>
-              <div style={{fontWeight:600,marginBottom:8}}>PIN Lock</div>
-              <Btn onClick={()=>{localStorage.removeItem(PIN_KEY);setPinOk(false);}} color={C.accent}>
-                {localStorage.getItem(PIN_KEY)?"Change PIN":"Set PIN"}
-              </Btn>
-            </Card>
-            <Card>
-              <div style={{fontWeight:600,marginBottom:8,color:C.red}}>Reset All Data</div>
-              <Btn onClick={()=>{
-                if(window.confirm("Clear ALL data? Cannot be undone.")){update(()=>EMPTY);}
-              }} color={C.red}>Reset Data</Btn>
-            </Card>
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     );
+  };
+
+  // ── SETTINGS CONTENT ──────────────────────────────────────────────────────────
+  const SettingsContent=()=>(
+    <div style={{maxWidth:600}}>
+      <div style={{fontWeight:700,fontSize:20,marginBottom:16}}>Settings</div>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:600,marginBottom:4}}>Account</div>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <img src={user.photoURL||""} style={{width:44,height:44,borderRadius:99,
+            border:`2px solid ${C.accent}`,objectFit:"cover",background:C.accent}}
+            onError={e=>e.target.style.display="none"}/>
+          <div>
+            <div style={{fontWeight:700}}>{user.displayName}</div>
+            <div style={{fontSize:12,color:C.muted}}>{user.email}</div>
+          </div>
+        </div>
+        <Btn onClick={signOutUser} color={C.border}>Sign Out</Btn>
+      </Card>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:600,marginBottom:12}}>Display Currency</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {Object.keys(CURRENCIES).map(c=>(
+            <Pill key={c} active={cur===c} onClick={()=>changeCurrency(c)}>{c} {CURRENCIES[c].symbol}</Pill>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:C.muted,marginTop:8}}>Approximate rates, display only.</div>
+      </Card>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:600,marginBottom:8}}>Export Data</div>
+        <div style={{fontSize:13,color:C.muted,marginBottom:12}}>Download all expenses as a CSV file.</div>
+        <Btn onClick={exportCSV} color={C.blue}>⬇ Export CSV</Btn>
+      </Card>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:600,marginBottom:8}}>PIN Lock</div>
+        <div style={{fontSize:13,color:C.muted,marginBottom:12}}>
+          {localStorage.getItem(PIN_KEY)?"PIN is active.":"No PIN set."}
+        </div>
+        <Btn onClick={()=>{localStorage.removeItem(PIN_KEY);setPinOk(false);}} color={C.accent}>
+          {localStorage.getItem(PIN_KEY)?"Change PIN":"Set PIN"}
+        </Btn>
+      </Card>
+      <Card>
+        <div style={{fontWeight:600,marginBottom:8,color:C.red}}>Reset All Data</div>
+        <div style={{fontSize:13,color:C.muted,marginBottom:12}}>Clears everything. Cannot be undone.</div>
+        <Btn onClick={()=>{if(window.confirm("Clear ALL data?"))update(()=>EMPTY);}} color={C.red}>Reset Data</Btn>
+      </Card>
+    </div>
+  );
+
+  const contentMap={
+    home:<HomeContent/>, accounts:<AccountsContent/>, expenses:<ExpensesContent/>,
+    invest:<InvestContent/>, family:<FamilyContent/>, subs:<SubsContent/>, settings:<SettingsContent/>
   };
 
   // ── gate screens ──────────────────────────────────────────────────────────────
   if(!fbReady) return(
     <div style={{background:C.bg,minHeight:"100vh",display:"flex",alignItems:"center",
       justifyContent:"center",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:40}}>💰</div>
-      <div style={{color:C.muted,fontSize:14}}>Loading Firebase…</div>
+      <div style={{fontSize:48}}>💰</div>
+      <div style={{color:C.muted,fontSize:14}}>Loading…</div>
     </div>
   );
-  if(!user) return <LoginScreen onLogin={()=>{}}/>;
+  if(!user) return <LoginScreen/>;
   if(!pinOk) return <PinScreen onUnlock={()=>setPinOk(true)}/>;
 
-  // ── main render ───────────────────────────────────────────────────────────────
+  // ── MAIN RENDER ───────────────────────────────────────────────────────────────
   return(
-    <div style={{background:C.bg,minHeight:"100vh",color:C.text,
-      fontFamily:"'Inter',system-ui,sans-serif",maxWidth:430,margin:"0 auto"}}>
+    <div id="app-shell">
 
-      {/* header */}
-      <div style={{padding:"16px 16px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div>
-          <div style={{fontWeight:800,fontSize:20}}>Finance Tracker</div>
-          <div style={{fontSize:11,color:syncColor,transition:"color .3s"}}>{syncLabel}</div>
+      {/* ── SIDEBAR (desktop only) ── */}
+      <div id="sidebar">
+        <div style={{padding:"0 20px 24px",borderBottom:`1px solid ${C.border}`,marginBottom:8}}>
+          <div style={{fontSize:18,fontWeight:800,color:C.text}}>💰 Finance</div>
+          <div style={{fontSize:10,color:C.muted,marginTop:2}}>Tracker 007</div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{fontSize:12,color:C.muted,background:C.card,
-            border:`1px solid ${C.border}`,borderRadius:8,padding:"4px 10px"}}>
-            {CURRENCIES[cur].symbol} {cur}
-          </div>
-          <img src={user.photoURL||""} style={{width:36,height:36,borderRadius:99,
-            border:`2px solid ${C.accent}`,objectFit:"cover",background:C.accent}}
-            onError={e=>e.target.style.display="none"}/>
-        </div>
-      </div>
-
-      {/* content */}
-      <div style={{padding:"14px 16px 90px"}}>
-        {tab==="home"     &&<HomeTab/>}
-        {tab==="accounts" &&<AccountsTab/>}
-        {tab==="expenses" &&<ExpensesTab/>}
-        {tab==="invest"   &&<InvestTab/>}
-        {tab==="more"     &&<MoreTab/>}
-      </div>
-
-      {/* bottom nav */}
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
-        width:"100%",maxWidth:430,background:C.card,
-        borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-around",
-        padding:"8px 0 16px"}}>
         {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            width:"100%",background:"none",border:"none",cursor:"pointer",
+            display:"flex",alignItems:"center",gap:12,padding:"12px 20px",
+            color:tab===t.id?C.text:C.muted,
+            background:tab===t.id?"#1e2130":"none",
+            borderLeft:tab===t.id?`3px solid ${C.accent}`:"3px solid transparent",
+            fontSize:14,fontWeight:tab===t.id?700:400,
+            transition:"all .15s",textAlign:"left"
+          }}>
+            <span style={{fontSize:18}}>{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+        <div style={{flex:1}}/>
+        <div style={{padding:"16px 20px",borderTop:`1px solid ${C.border}`,marginTop:"auto"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <img src={user.photoURL||""} style={{width:32,height:32,borderRadius:99,
+              border:`2px solid ${C.accent}`,objectFit:"cover",background:C.accent}}
+              onError={e=>e.target.style.display="none"}/>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:C.text}}>{user.displayName?.split(" ")[0]}</div>
+              <div style={{fontSize:10,color:syncColor}}>{syncLabel}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN AREA ── */}
+      <div id="main-area">
+
+        {/* top bar */}
+        <div id="top-bar">
+          <div>
+            <div style={{fontWeight:800,fontSize:isMobile?18:22}}>{TABS.find(t=>t.id===tab)?.label}</div>
+            <div style={{fontSize:11,color:C.muted}}>
+              {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <div style={{fontSize:12,color:C.muted,background:C.card,
+              border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer"}}
+              onClick={()=>setTab("settings")}>
+              {CURRENCIES[cur].symbol} {cur}
+            </div>
+            {isMobile&&(
+              <img src={user.photoURL||""} style={{width:34,height:34,borderRadius:99,
+                border:`2px solid ${C.accent}`,objectFit:"cover",background:C.accent}}
+                onError={e=>e.target.style.display="none"}/>
+            )}
+          </div>
+        </div>
+
+        {/* content */}
+        <div id="content-area">
+          {contentMap[tab]||<HomeContent/>}
+        </div>
+      </div>
+
+      {/* ── BOTTOM NAV (mobile only) ── */}
+      <div id="bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,
+        background:C.sidebar,borderTop:`1px solid ${C.border}`,
+        display:"flex",justifyContent:"space-around",padding:"8px 0 16px",zIndex:50}}>
+        {TABS.filter(t=>t.id!=="settings").map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{background:"none",border:"none",
-            cursor:"pointer",padding:"4px 8px",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:20}}>{t.icon}</span>
+            cursor:"pointer",padding:"4px 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            <span style={{fontSize:19}}>{t.icon}</span>
             <span style={{fontSize:9,fontWeight:600,color:tab===t.id?C.accent:C.muted}}>{t.label}</span>
             {tab===t.id&&<div style={{width:4,height:4,borderRadius:99,background:C.accent}}/>}
           </button>
         ))}
+        <button onClick={()=>setTab("settings")} style={{background:"none",border:"none",
+          cursor:"pointer",padding:"4px 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+          <span style={{fontSize:19}}>⚙️</span>
+          <span style={{fontSize:9,fontWeight:600,color:tab==="settings"?C.accent:C.muted}}>Settings</span>
+          {tab==="settings"&&<div style={{width:4,height:4,borderRadius:99,background:C.accent}}/>}
+        </button>
       </div>
 
-      {/* modals */}
+      {/* ── MODALS ── */}
       {modal==="addExpense"&&(
-        <Modal title="Add Expense" onClose={closeModal}>
+        <Modal title="Add Expense" onClose={closeModal} isMobile={isMobile}>
           <Inp label="Description" placeholder="e.g. Gift for Dad"
             value={form.desc||""} onChange={e=>f("desc",e.target.value)}/>
           <Inp label="Amount (USD)" type="number" placeholder="0.00"
@@ -983,7 +1042,7 @@ function App(){
         </Modal>
       )}
       {modal==="addBank"&&(
-        <Modal title="Add Bank Account" onClose={closeModal}>
+        <Modal title="Add Bank Account" onClose={closeModal} isMobile={isMobile}>
           <Inp label="Account name" placeholder="e.g. Chase Checking"
             value={form.name||""} onChange={e=>f("name",e.target.value)}/>
           <Sel label="Type" value={form.type||"checking"} onChange={e=>f("type",e.target.value)}>
@@ -995,7 +1054,7 @@ function App(){
         </Modal>
       )}
       {modal==="addCard"&&(
-        <Modal title="Add Credit Card" onClose={closeModal}>
+        <Modal title="Add Credit Card" onClose={closeModal} isMobile={isMobile}>
           <Inp label="Card name" placeholder="e.g. Amex Gold"
             value={form.name||""} onChange={e=>f("name",e.target.value)}/>
           <Inp label="Credit limit ($)" type="number"
@@ -1006,7 +1065,7 @@ function App(){
         </Modal>
       )}
       {modal==="addFamily"&&(
-        <Modal title="Add Family Transaction" onClose={closeModal}>
+        <Modal title="Add Family Transaction" onClose={closeModal} isMobile={isMobile}>
           <Inp label="Person" placeholder="e.g. Mom"
             value={form.name||""} onChange={e=>f("name",e.target.value)}/>
           <Inp label="Amount ($)" type="number"
@@ -1019,7 +1078,7 @@ function App(){
         </Modal>
       )}
       {modal==="addSub"&&(
-        <Modal title="Add Subscription" onClose={closeModal}>
+        <Modal title="Add Subscription" onClose={closeModal} isMobile={isMobile}>
           <Inp label="Service" placeholder="e.g. Netflix"
             value={form.name||""} onChange={e=>f("name",e.target.value)}/>
           <Inp label="Amount ($)" type="number"
@@ -1033,7 +1092,7 @@ function App(){
         </Modal>
       )}
       {modal==="addInvestment"&&(
-        <Modal title="Add Investment" onClose={closeModal}>
+        <Modal title="Add Investment" onClose={closeModal} isMobile={isMobile}>
           <Sel label="Type" value={form.itype||"Stock"} onChange={e=>f("itype",e.target.value)}>
             <option>Stock</option><option>Crypto</option><option>ETF</option><option>Mutual Fund</option>
           </Sel>
